@@ -11,6 +11,7 @@
 // @grant        GM_xmlhttpRequest
 // @grant        GM.xmlHttpRequest
 // @grant        GM_addStyle
+// @icon         https://i.ibb.co/7NZjNffJ/cringe.png
 // @require      https://code.jquery.com/jquery-3.4.1.min.js
 // @require      https://code.jquery.com/ui/1.13.3/jquery-ui.min.js
 // ==/UserScript==
