@@ -19,35 +19,36 @@
 'use strict';
 
 const def = {
-  vis_uiDarkTheme: true, //                       Тёмная тема (Дуров верни стену)
-  vis_fieldCellBorders: true, //                  Сетка ячеек
-  vis_fieldCellBorders_opacity: 0.1, //             Прозрачность сетки (0–1)
-  vis_fieldCellBorders_color: '#ffffff', //       Цвет сетки
-  vis_fieldAlwaysLight: false, //                 Не затемнять игровую
-  vis_showHighWounds3: true, //                   Иконка при 3 стадии ран
-  vis_showHighWounds4: true, //                   Иконка при 4 стадии ран
-  vis_showBeatedCats: false, //                   Выделение выбитых
-  vis_showBeatedCats_variant: 2, //                 Вариант выделения выбитых (0=батарейка аним., 1=батарейка стат., 2=стрелка)
-  func_shortFightLog: false, //                   Сжимать повторные удары в логе
-  func_moveFightLog: true, //                     Перетаскиваемый лог
-  func_blockStatusOverlay: true, //               Визуальный сигнал при активном блоке
-  func_blockStatusOverlay_variant: 1, //            Вариант сигнала блока (0–3)
-  func_blockOverlay_color: '#e05555', //          Цвет рамки блока (вар. 2–3)
-  aud_blockOnSound: false, //                     Звук при зажатии блока
-  aud_blockOffSound: false, //                    Звук при отжатии блока
-  var_playerId: 0, //                             Мой айди (catwar.su/catXXXXX → число)
-  on_teamFights: true, //                         Командные стрелочки
-  tf_resetOnRefresh: true, //                       Сбрасывать команды при обновлении списка
-  tf_autoTeam: 0, //                                Авто-определение команд (0=ручной, 1=шахматы, 2=прямо, 3=от стен)
-  tf_color_g_team1: '#41cd70', //                 Цвет зелёной стрелки команды 1
-  tf_color_g_team2: '#429dde', //                 Цвет зелёной стрелки команды 2
-  tf_color_g_team3: '#f6c739', //                 Цвет зелёной стрелки команды 3
-  tf_color_g_team4: '#ee91d7', //                 Цвет зелёной стрелки команды 4
-  tf_color_r_team1: '#cd4141', //                 Цвет красной стрелки команды 1
-  tf_color_r_team2: '#cd4141', //                 Цвет красной стрелки команды 2
-  tf_color_r_team3: '#cd4141', //                 Цвет красной стрелки команды 3
-  tf_color_r_team4: '#cd4141', //                 Цвет красной стрелки команды 4
-  tf_max_height: 100, //                            Макс. высота списка команд (px)
+   vis_uiDarkTheme: true //                       Тёмная тема (Дуров верни стену)
+  ,vis_fieldCellBorders: true //                  Сетка ячеек
+  ,vis_fieldCellBorders_opacity: 0.1 //             Прозрачность сетки (0–1)
+  ,vis_fieldCellBorders_color: '#ffffff' //       Цвет сетки
+  ,vis_fieldAlwaysLight: false //                 Не затемнять игровую
+  ,vis_showHighWounds3: true //                   Иконка при 3 стадии ран
+  ,vis_showHighWounds4: true //                   Иконка при 4 стадии ран
+  ,vis_showBeatedCats: false //                   Выделение выбитых
+  ,vis_showBeatedCats_variant: 2 //                 Вариант выделения выбитых (0=батарейка аним., 1=батарейка стат., 2=стрелка)
+  ,vis_replaceFamilyBlock: false //               Заменить семью на настройки Облегчалочки
+  ,func_shortFightLog: false //                   Сжимать повторные удары в логе
+  ,func_moveFightLog: true //                     Перетаскиваемый лог
+  ,func_blockStatusOverlay: true //               Визуальный сигнал при активном блоке
+  ,func_blockStatusOverlay_variant: 1 //            Вариант сигнала блока (0–3)
+  ,func_blockOverlay_color: '#e05555' //          Цвет рамки блока (вар. 2–3)
+  ,aud_blockOnSound: false //                     Звук при зажатии блока
+  ,aud_blockOffSound: false //                    Звук при отжатии блока
+  ,var_playerId: 0 //                             Мой айди (catwar.su/catXXXXX → число)
+  ,on_teamFights: true //                         Командные стрелочки
+  ,tf_resetOnRefresh: true //                       Сбрасывать команды при обновлении списка
+  ,tf_autoTeam: 0 //                                Авто-определение команд (0=ручной, 1=шахматы, 2=прямо, 3=от стен)
+  ,tf_color_g_team1: '#41cd70' //                 Цвет зелёной стрелки команды 1
+  ,tf_color_g_team2: '#429dde' //                 Цвет зелёной стрелки команды 2
+  ,tf_color_g_team3: '#f6c739' //                 Цвет зелёной стрелки команды 3
+  ,tf_color_g_team4: '#ee91d7' //                 Цвет зелёной стрелки команды 4
+  ,tf_color_r_team1: '#cd4141' //                 Цвет красной стрелки команды 1
+  ,tf_color_r_team2: '#cd4141' //                 Цвет красной стрелки команды 2
+  ,tf_color_r_team3: '#cd4141' //                 Цвет красной стрелки команды 3
+  ,tf_color_r_team4: '#cd4141' //                 Цвет красной стрелки команды 4
+  ,tf_max_height: 100 //                            Макс. высота списка команд (px)
 };
 
 const glob = {};
@@ -121,10 +122,11 @@ function initInGameSettings() { // Настроечки в игровой
     const $family = $('td#family');
     if (!$family.length) return;
 
-    $family.empty();
     $family.css({ padding: '6px', verticalAlign: 'top' });
 
-    $family.append(`
+    const $familyInner = $family.children().wrapAll('<div id="bh-family-inner">').parent();
+
+    $family.prepend(`
       <style>
         #bh-cw3-settings {
           font-size: 11px;
@@ -149,6 +151,8 @@ function initInGameSettings() { // Настроечки в игровой
       </style>
 
       <div id="bh-cw3-settings">
+
+        <h2><a href="#" id="bh-cw3-h2">Настройки Облегчалочки</a></h2>
 
         <div class="bh-section">
           <div class="bh-section-title">Визуал</div>
@@ -291,6 +295,30 @@ function initInGameSettings() { // Настроечки в игровой
       setSettings(key, val);
       applySettingLive(key, val);
     });
+
+    function applyFamilyToggle() {
+      if (glob.vis_replaceFamilyBlock) {
+        $familyInner.hide();
+        $('#bh-cw3-settings').show();
+      } else {
+        $familyInner.show();
+        $('#bh-cw3-settings').hide();
+      }
+    }
+
+    $('#relatives').on('click', function (e) {
+      e.preventDefault();
+      setSettings('vis_replaceFamilyBlock', true);
+      applyFamilyToggle();
+    });
+
+    $('#bh-cw3-h2').on('click', function (e) {
+      e.preventDefault();
+      setSettings('vis_replaceFamilyBlock', false);
+      applyFamilyToggle();
+    });
+
+    applyFamilyToggle();
   });
 }
 
@@ -918,6 +946,7 @@ ${chk('func_shortFightLog', 'Сокращать повторные удары')}
 ${chk('func_moveFightLog', 'Перетаскиваемый лог')}
 
 ${hr()}${h('Игровая')}
+${chk('vis_replaceFamilyBlock', 'Заменить блок семьи на быстрые настройки Облегчалочки (поменять семью на боёвку)')}
 ${chk('vis_uiDarkTheme', 'Тёмная тема')}
 ${chk('vis_fieldAlwaysLight', 'Не затемнять поле игровой')}
 ${chk('vis_fieldCellBorders', 'Сетка ячеек')}
