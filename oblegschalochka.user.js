@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         Облегчалочка
-// @version      1.0
+// @version      1.1
 // @description  Набор простеньких улучшений для облегчения активных боёв в CatWar.
 // @author       Krivodushie
 // @copyright    Roman Kotenkov ( https://vk.ru/Krivodushie / https://github.com/Krivodushie )
@@ -52,12 +52,13 @@ const def = {
 };
 
 // CHANGELOG
-// 1.0 (Без изменения версии)
-// Убрал тёмную тему из дефолтных настроек
-// Скоро закину хотфиксы для известных багов:
-// Командные стрелочки ломают лог при наведении на обновить список
-// Визуальный сигнал при блоке: выделение рамки у игровой работает криво на разных масштабах
-// Выделение выбитых батарейкой и выделение раненых конфликтует: сделаю новую свгшку на случай если игрок и ранен и выбит
+// 1.1 – Хотфиксы. Ничо не менял принципиально.
+// - Убрал тёмную тему из дефолтных настроек
+// - Перенёс кнопку обновить команды под блок выбора команд. Кто-то страдал от перекрытия кнопки скроллом.
+// - Починил кривое отображение зажатого блока рамкой игровой
+// - Убрал конфликт выделения 3-4 ран с выделением выбитых батарейкой: если чел с 3-4 ранами, батарейка не отображается.
+//   (Бтв всё равно если чел с 3-4 ранами его бить априори нельзя)
+
 
 const glob = {};
 for (const key in def) {
@@ -357,9 +358,10 @@ function applySettingLive(key, val) {
     case 'func_blockOverlay_color': {
       $('#bh-block-v0').remove();
       const panel = document.getElementById('fightPanel');
-      const field = document.getElementById('tr_field');
+      const field = document.getElementById('cages_overflow');
       if (panel) { panel.style.opacity = '1'; panel.style.outline = ''; panel.style.boxShadow = ''; }
-      if (field)   field.style.outline = '';
+      if (field) field.style.boxShadow = '';
+      $('#bh-block-v0, #bh-block-v3').remove();
       break;
     }
 
@@ -394,8 +396,10 @@ function initTeamFightsDOM() { // Команды в боережиме
         </thead>
         <tbody id="fightColors"></tbody>
       </table>
-      <button id="refresh-team">Обновить список</button>
-    </div>`);
+    </div>
+    <button id="refresh-team">
+      Обновить список
+    </button>`);
 
     function applyTeamColor(id) {
       const style = `#arrow${id} .arrow_green { background: var(--team${ids[id]}g); }\n`
@@ -544,8 +548,8 @@ label.team-4 { background: var(--team4g); color: var(--team4g); }
 }
 input:checked + .cws-team { border: 2px solid black; font-weight: bold; color: black; }
 #fightPanel  { height: max-content; }
-#fteams-wrap { margin: 5px 0; max-height: ${glob.tf_max_height}px; overflow-y: scroll; }
-#refresh-team { width: 100%; }
+#fteams-wrap { margin: 5px 0 0 0; max-height: ${glob.tf_max_height}px; overflow-y: scroll; }
+#refresh-team { width: 95%; margin: 0 0 5px 0; }
 .tf-color { color: black; }`];
 }
 
@@ -669,9 +673,23 @@ function blockOverlaySignal(isLocked) {
       break;
     }
     case 3: {
-      const field = document.getElementById('tr_field');
-      if (!field) return;
-      field.style.outline = isLocked ? `3px solid ${color}` : '';
+      let styleEl = document.getElementById('bh-block-v3');
+      if (!styleEl) {
+        styleEl = document.createElement('style');
+        styleEl.id = 'bh-block-v3';
+        document.head.appendChild(styleEl);
+      }
+      styleEl.textContent = isLocked
+        ? `#cages_overflow { position: relative; }
+           #cages_overflow::after {
+             content: '';
+             position: absolute;
+             inset: 0;
+             pointer-events: none;
+             box-shadow: 0 0 0 3px ${color}, 0 0 20px 8px ${color};
+             z-index: 9998;
+           }`
+        : '';
       break;
     }
   }
@@ -772,7 +790,7 @@ function cssFieldAlwaysLight() {
 }
 
 function cssBeatedCats() {
-  const base = `table#cages tbody tr td.cage div.cage_items:has(span.catWithArrow div div table tbody tr td.arrow_green[style*="width: 0px"])`;
+  const base = `table#cages tbody tr td.cage div.cage_items:has(span.catWithArrow div div table tbody tr td.arrow_green[style*="width: 0px"]):not(:has([style*="wound/3.png"])):not(:has([style*="wound/4.png"]))`;
 
   const svgBatteryStatic = `data:image/svg+xml,` + encodeURIComponent(
     `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 701 800">` +
