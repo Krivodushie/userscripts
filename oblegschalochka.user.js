@@ -19,14 +19,14 @@
 'use strict';
 
 const def = {
-   vis_uiDarkTheme: true //                       Тёмная тема (Дуров верни стену)
-  ,vis_fieldCellBorders: true //                  Сетка ячеек
+   vis_uiDarkTheme: false //                      Тёмная тема (Дуров верни стену)
+  ,vis_fieldCellBorders: false //                  Сетка ячеек
   ,vis_fieldCellBorders_opacity: 0.1 //             Прозрачность сетки (0–1)
   ,vis_fieldCellBorders_color: '#ffffff' //       Цвет сетки
   ,vis_fieldAlwaysLight: false //                 Не затемнять игровую
   ,vis_showHighWounds3: true //                   Иконка при 3 стадии ран
   ,vis_showHighWounds4: true //                   Иконка при 4 стадии ран
-  ,vis_showBeatedCats: false //                   Выделение выбитых
+  ,vis_showBeatedCats: true //                    Выделение выбитых
   ,vis_showBeatedCats_variant: 2 //                 Вариант выделения выбитых (0=батарейка аним., 1=батарейка стат., 2=стрелка)
   ,vis_replaceFamilyBlock: false //               Заменить семью на настройки Облегчалочки
   ,func_shortFightLog: false //                   Сжимать повторные удары в логе
@@ -37,7 +37,7 @@ const def = {
   ,aud_blockOnSound: false //                     Звук при зажатии блока
   ,aud_blockOffSound: false //                    Звук при отжатии блока
   ,var_playerId: 0 //                             Мой айди (catwar.su/catXXXXX → число)
-  ,on_teamFights: true //                         Командные стрелочки
+  ,on_teamFights: false //                         Командные стрелочки
   ,tf_resetOnRefresh: true //                       Сбрасывать команды при обновлении списка
   ,tf_autoTeam: 0 //                                Авто-определение команд (0=ручной, 1=шахматы, 2=прямо, 3=от стен)
   ,tf_color_g_team1: '#41cd70' //                 Цвет зелёной стрелки команды 1
@@ -50,6 +50,14 @@ const def = {
   ,tf_color_r_team4: '#cd4141' //                 Цвет красной стрелки команды 4
   ,tf_max_height: 100 //                            Макс. высота списка команд (px)
 };
+
+// CHANGELOG
+// 1.0 (Без изменения версии)
+// Убрал тёмную тему из дефолтных настроек
+// Скоро закину хотфиксы для известных багов:
+// Командные стрелочки ломают лог при наведении на обновить список
+// Визуальный сигнал при блоке: выделение рамки у игровой работает криво на разных масштабах
+// Выделение выбитых батарейкой и выделение раненых конфликтует: сделаю новую свгшку на случай если игрок и ранен и выбит
 
 const glob = {};
 for (const key in def) {
