@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         CW Things List [RA Team]
-// @version      1.0
+// @version      1.1.0
 // @description  Мобильный список предметов для CatWar – при наведении на предмет показывается вся информация о нём!
 // @author       RA couple ( Krivodushie & Psiii )
 // @copyright    Roman Kotenkov  ( https://vk.ru/krivodushie / https://github.com/krivodushie )
@@ -14,6 +14,15 @@
 // @connect      raw.githubusercontent.com
 // @icon         https://catwar.net/cw3/things/647.png
 // ==/UserScript==
+
+// CHANGELOG
+// 1.1.0 – Багфикс
+// - Нового ничего не добавил
+// - Добавил возможность УБРАТЬ отображение окошка:
+// -- Под игроком
+// -- Во рту у игрока
+// -- Везде кроме игровой
+// - Попробовал пофиксить баг с дублирующимся окошком (не знаю, получилось ли)
 
 (function () {
 'use strict';
@@ -69,15 +78,17 @@ const DEF = {
     hoverRadius: 70, //             Радиус наведения на предмет (px)
     showDescription: true, //       Показывать описание
     showEffect: true, //            Показывать эффекты
-    showDate: true, //              Показывать дату (я не помню зачем её добавил, удалю потом)
+    showDate: true, //              Показывать дату
     showHistory: true, //           Показывать способ получения предмета
     showGrade: true, //             Показывать баллы
     showWeight: true, //            Показывать вес
+    hideOnPlayerCage: false, //     Не показывать, если на клетке с предметами сидит игрок
+    hideInMouth: false, //          Не показывать предметы во рту у игрока
+    hideOutsideGame: false, //      Не показывать вне игровой (вне cw3 вкладки)
     seenSettings: false, //           Техническое: заходили ли уже в настройки
     lastUpdateDate: '', //            Техническое: Дата последнего успешного обновления базы (YYYY-MM-DD)
     lastUpdateFailed: false, //       Техническое: Провалилась ли последняя попытка обновления
     lastUpdateFailedSeen: true, //    Техническое: Видел ли пользователь уведомление о провале
-//                                  Рома фембойчик
 };
 
 function getSetting(key) {
@@ -121,7 +132,7 @@ function fetchDb() {
             timeout: FETCH_TIMEOUT,
             onload: r => {
                 try { resolve(decryptPayload(r.responseText.trim(), DB_KEY)); }
-                catch (e) { console.error('[CW:TL] Не смог расшифровать/распарсить ответ сервера, получился бред', e); resolve(null); }
+                catch (e) { console.error('[CW:TL] Не смог расшифровать/распарсить ответ сервера', e); resolve(null); }
             },
             onerror: () => resolve(null),
             ontimeout: () => resolve(null),
@@ -130,7 +141,6 @@ function fetchDb() {
 }
 
 async function initDb() {
-
     itemsDb = loadCache() || TEST_DB;
 }
 
@@ -349,6 +359,12 @@ GM_addStyle(`
     border-top: 1px solid rgba(255,255,255,0.1);
     margin: 8px 0;
 }
+.kti-set-group-title {
+    font-size: 11.5px;
+    font-weight: 600;
+    color: #a09ea0;
+    margin: 4px 0 2px;
+}
 #kti-update-status {
     display: block;
     margin: 6px 0;
@@ -378,15 +394,12 @@ GM_addStyle(`
 }
 #kti-update-btn:hover { background: #3d3d3d; }
 #kti-update-btn:disabled { opacity: 0.6; cursor: default; }
-
-
 `);
 
 function escapeHtml(str) {
     return String(str).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 }
 
-// TODO: Подобрать цвета под реальные грейд цвета ВАЖНО
 function gradeColor(grade) {
     if (grade >= 9) return '#c9782e';
     if (grade >= 7) return '#8a5fc9';
@@ -409,15 +422,33 @@ function renderTooltip(id, thumbUrl) {
     const el = ensureTooltip();
     el.style.maxWidth = (SETTINGS.tooltipWidth || DEF.tooltipWidth) + 'px';
 
-    const hasEffects  = Array.isArray(data?.effects) && data.effects.length > 0;
+    const hasEffects     = Array.isArray(data?.effects) && data.effects.length > 0;
+    const isNoEffect     = data?.effects === 'none';
+    const isUnknownEffect = data && !hasEffects && !isNoEffect;
+
     const showGrade   = SETTINGS.showGrade  && data?.grade != null;
     const showWeight  = SETTINGS.showWeight && !!data;
     const showDesc    = SETTINGS.showDescription && data?.description;
-    const showEffect  = SETTINGS.showEffect && hasEffects;
-    const showNoEffect = SETTINGS.showEffect && data && !hasEffects && !data?.description;
+    const showEffect  = SETTINGS.showEffect;
     const showDate    = SETTINGS.showDate   && data?.date;
     const showHist    = SETTINGS.showHistory && data?.history;
     const showUnique  = !!data?.unique;
+
+    let effectsBlock = '';
+    if (showEffect && data) {
+        if (hasEffects) {
+            effectsBlock = data.effects.map(fx => {
+                const cls = fx?.type === 'negative' ? 'kti-effect-negative'
+                    : fx?.type === 'neutral' ? 'kti-effect-neutral'
+                    : 'kti-effect-positive';
+                return `<div class="kti-effect ${cls}">${escapeHtml(fx?.text ?? '')}</div>`;
+            }).join('');
+        } else if (isNoEffect) {
+            effectsBlock = `<div class="kti-row kti-muted">Эффекта нет</div>`;
+        } else if (isUnknownEffect) {
+            effectsBlock = `<div class="kti-row kti-muted">Эффект неизвестен</div>`;
+        }
+    }
 
     el.innerHTML = `
         <div class="kti-head">
@@ -434,13 +465,7 @@ function renderTooltip(id, thumbUrl) {
             : `<div class="kti-row"><b>Вес:</b> ${data.weight != null ? escapeHtml(String(data.weight)) : 'неизвестно'}</div>`
         ) : ''}
         ${showUnique ? `<div class="kti-row kti-unique">В единственном экземпляре</div>` : ''}
-        ${showEffect ? data.effects.map(fx => {
-            const cls = fx?.type === 'negative' ? 'kti-effect-negative'
-                : fx?.type === 'neutral' ? 'kti-effect-neutral'
-                : 'kti-effect-positive';
-            return `<div class="kti-effect ${cls}">${escapeHtml(fx?.text ?? '')}</div>`;
-        }).join('') : ''}
-        ${showNoEffect ? `<div class="kti-row kti-muted">Эффекта нет</div>` : ''}
+        ${effectsBlock}
         ${showDate ? `<div class="kti-row"><b>Дата:</b> ${escapeHtml(data.date)}</div>` : ''}
         ${showHist ? `<div class="kti-row"><b>Получение:</b> ${escapeHtml(data.history)}</div>` : ''}
         ${!data ? `<div class="kti-row kti-muted">Нет данных в базе</div>` : ''}
@@ -496,6 +521,23 @@ function closestThingBgEl(target) {
     return null;
 }
 
+const CW3_SELECTOR = '.cw3, #cw3';
+
+function isInsideGame(el) {
+    return !!(el && el.closest && el.closest(CW3_SELECTOR));
+}
+
+function cageHasPlayer(bgEl) {
+    if (!bgEl) return false;
+    if (bgEl.querySelector('.cat, .catWithArrow')) return true;
+    const cageTd = bgEl.closest('.cage');
+    return !!(cageTd && cageTd.querySelector('.cat, .catWithArrow'));
+}
+
+function imgInMouth(img) {
+    return !!(img && img.closest && img.closest('ol.mouth, .mouth'));
+}
+
 function clearActiveBg() {
     activeBgEl = null;
     activeBgItems = null;
@@ -545,19 +587,39 @@ function renderTooltipIfNeeded(id, thumbUrl) {
 }
 
 function processPointer(clientX, clientY) {
-    if (!SETTINGS.tableEnabled) {
+    if (!SETTINGS.tableEnabled || settingsOpen) {
         hideTooltip();
         lastRenderedId = null;
         return;
     }
 
     if (lastKind === 'img' && lastImg) {
+        if (SETTINGS.hideOutsideGame && !isInsideGame(lastImg)) {
+            hideTooltip();
+            lastRenderedId = null;
+            return;
+        }
+        if (SETTINGS.hideInMouth && imgInMouth(lastImg)) {
+            hideTooltip();
+            lastRenderedId = null;
+            return;
+        }
         renderTooltipIfNeeded(extractThingId(lastImg.src), lastImg.src);
         positionTooltip(clientX, clientY);
         return;
     }
 
     if (lastKind === 'bg' && activeBgEl) {
+        if (SETTINGS.hideOutsideGame && !isInsideGame(activeBgEl)) {
+            hideTooltip();
+            lastRenderedId = null;
+            return;
+        }
+        if (SETTINGS.hideOnPlayerCage && cageHasPlayer(activeBgEl)) {
+            hideTooltip();
+            lastRenderedId = null;
+            return;
+        }
         if (!activeBgRect) refreshActiveBgRect();
         const hit = activeBgItems && activeBgItems.length
             ? nearestBgItem(activeBgRect, activeBgItems, clientX, clientY)
@@ -655,6 +717,7 @@ function markSettingsSeen() {
 }
 
 let settingsOverlayEl = null;
+let settingsOpen = false;
 
 function buildSettingsModal() {
     const overlay = document.createElement('div');
@@ -699,6 +762,20 @@ function buildSettingsModal() {
                     <label for="kti-set-showWeight">Показывать вес</label>
                 </div>
                 <hr>
+                <div class="kti-set-group-title">Не показывать информацию о предметах:</div>
+                <div class="kti-set-row">
+                    <input type="checkbox" id="kti-set-hideOnPlayerCage">
+                    <label for="kti-set-hideOnPlayerCage">Если на клетке с предметами сидит игрок</label>
+                </div>
+                <div class="kti-set-row">
+                    <input type="checkbox" id="kti-set-hideInMouth">
+                    <label for="kti-set-hideInMouth">Во рту у игрока</label>
+                </div>
+                <div class="kti-set-row">
+                    <input type="checkbox" id="kti-set-hideOutsideGame">
+                    <label for="kti-set-hideOutsideGame">Вне Игровой (вне cw3 вкладки)</label>
+                </div>
+                <hr>
                 <div class="kti-set-row">
                     <input type="number" id="kti-set-tooltipWidth" min="150" max="500" step="10">
                     <label for="kti-set-tooltipWidth">Ширина всплывающего окна (px)</label>
@@ -729,6 +806,9 @@ function buildSettingsModal() {
     overlay.querySelector('#kti-set-showHistory').checked = !!SETTINGS.showHistory;
     overlay.querySelector('#kti-set-showGrade').checked = !!SETTINGS.showGrade;
     overlay.querySelector('#kti-set-showWeight').checked = !!SETTINGS.showWeight;
+    overlay.querySelector('#kti-set-hideOnPlayerCage').checked = !!SETTINGS.hideOnPlayerCage;
+    overlay.querySelector('#kti-set-hideInMouth').checked = !!SETTINGS.hideInMouth;
+    overlay.querySelector('#kti-set-hideOutsideGame').checked = !!SETTINGS.hideOutsideGame;
     overlay.querySelector('#kti-set-tooltipWidth').value = SETTINGS.tooltipWidth;
     overlay.querySelector('#kti-set-hoverRadius').value = SETTINGS.hoverRadius;
 
@@ -742,6 +822,9 @@ function buildSettingsModal() {
     overlay.querySelector('#kti-set-showHistory').addEventListener('change', function () { setSetting('showHistory', this.checked); });
     overlay.querySelector('#kti-set-showGrade').addEventListener('change', function () { setSetting('showGrade', this.checked); });
     overlay.querySelector('#kti-set-showWeight').addEventListener('change', function () { setSetting('showWeight', this.checked); });
+    overlay.querySelector('#kti-set-hideOnPlayerCage').addEventListener('change', function () { setSetting('hideOnPlayerCage', this.checked); });
+    overlay.querySelector('#kti-set-hideInMouth').addEventListener('change', function () { setSetting('hideInMouth', this.checked); });
+    overlay.querySelector('#kti-set-hideOutsideGame').addEventListener('change', function () { setSetting('hideOutsideGame', this.checked); });
     overlay.querySelector('#kti-set-tooltipWidth').addEventListener('change', function () {
         const v = parseFloat(this.value);
         setSetting('tooltipWidth', Number.isFinite(v) && v > 0 ? v : DEF.tooltipWidth);
@@ -789,6 +872,9 @@ function escSettingsHandler(e) {
 
 function openSettingsModal() {
     markSettingsSeen();
+    settingsOpen = true;
+    hideTooltip();
+    lastRenderedId = null;
     if (!settingsOverlayEl) settingsOverlayEl = buildSettingsModal();
     renderUpdateStatus();
     settingsOverlayEl.classList.add('visible');
@@ -796,6 +882,7 @@ function openSettingsModal() {
 }
 
 function closeSettingsModal() {
+    settingsOpen = false;
     if (settingsOverlayEl) settingsOverlayEl.classList.remove('visible');
     document.removeEventListener('keydown', escSettingsHandler);
 }
