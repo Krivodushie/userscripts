@@ -250,10 +250,11 @@ GM_addStyle(`
     flex-shrink: 0;
     min-width: 20px;
     text-align: center;
-    padding: 2px 6px;
+    padding: 3px 3px 6px 3px;
     border-radius: 5px;
     font-weight: 700;
     color: #fff;
+    font-size: 13px;
 }
 .kti-desc { color: #cfc9cf; margin-bottom: 4px; }
 .kti-effect {
@@ -401,11 +402,11 @@ function escapeHtml(str) {
 }
 
 function gradeColor(grade) {
-    if (grade >= 9) return '#c9782e';
-    if (grade >= 7) return '#8a5fc9';
-    if (grade >= 5) return '#4f8fd6';
-    if (grade >= 3) return '#5a9e5a';
-    return '#6b6b6b';
+    if (grade >= 9) return '#B78250';
+    if (grade >= 7) return '#9A6FC1';
+    if (grade >= 5) return '#6B8CBD';
+    if (grade >= 3) return '#749667';
+    return '#7A7A7A';
 }
 
 let tooltipEl = null;
