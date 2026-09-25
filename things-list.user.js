@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         CW Things List [RA Team]
-// @version      1.1.0
+// @version      1.2.0
 // @description  Мобильный список предметов для CatWar – при наведении на предмет показывается вся информация о нём!
 // @author       RA couple ( Krivodushie & Psiii )
 // @copyright    Roman Kotenkov  ( https://vk.ru/krivodushie / https://github.com/krivodushie )
@@ -13,9 +13,20 @@
 // @grant        GM_addStyle
 // @connect      raw.githubusercontent.com
 // @icon         https://catwar.net/cw3/things/647.png
+// @noframes
 // ==/UserScript==
 
 // CHANGELOG
+// 1.2.0 – Новая Игровая
+// - Добавил кнопку настроек в верхнюю панель новой Игровой (рядом с «Мой кот», «Чат», «ЛС»)
+// - Снова пофиксил дублирующееся окошко:
+// -- Если скрипт установлен дважды (например, две разные версии), вторая копия теперь не запускается.
+//    Раньше обе копии рисовали свою всплывашку поверх друг друга, и при смене ширины в настройках
+//    это становилось видно, потому что вторая копия продолжала рисовать со старой шириной
+// -- Скрипт больше не запускается внутри iframe
+// - Добавил список исключений (EXCLUDED_IDS): для этих предметов окошко вообще не показывается
+// -- Пока там только #564
+//
 // 1.1.0 – Багфикс
 // - Нового ничего не добавил
 // - Добавил возможность УБРАТЬ отображение окошка:
@@ -26,6 +37,13 @@
 
 (function () {
 'use strict';
+
+const ROOT_EL = document.documentElement;
+if (ROOT_EL.hasAttribute('data-kti-loaded')) {
+    console.warn('[CW:TL] Скрипт уже запущен на этой странице, вторая копия отключена');
+    return;
+}
+ROOT_EL.setAttribute('data-kti-loaded', '1');
 
 const DB_URL = 'https://raw.githubusercontent.com/Krivodushie/userscripts/refs/heads/main/data/things.json';
 const CACHE_KEY = 'kti-things-db';
@@ -65,6 +83,14 @@ const TEST_DB = {
         ],
     }
 };
+
+const EXCLUDED_IDS = new Set([
+    '564',
+]);
+
+function isExcluded(id) {
+    return id != null && EXCLUDED_IDS.has(String(id));
+}
 
 const THING_RE = /things(?:\/|%2F)+(\d+)\.png/i;
 
@@ -194,7 +220,7 @@ function parseBgThings(el) {
     const items = [];
     urls.forEach((url, i) => {
         const id = extractThingId(url);
-        if (!id) return;
+        if (!id || isExcluded(id)) return;
         const posStr = positions[i] || positions[positions.length - 1] || '0% 0%';
         const parts = posStr.split(/\s+/);
         const x = parseFloat(parts[0]) / 100 || 0;
@@ -298,6 +324,28 @@ GM_addStyle(`
 }
 @keyframes kti-spin { to { transform: rotate(360deg); } }
 
+.game-topbar-nav > a.kti-topbar-btn {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+}
+.kti-topbar-btn img {
+    width: 16px;
+    height: 16px;
+    object-fit: contain;
+    image-rendering: pixelated;
+    flex-shrink: 0;
+}
+.kti-topbar-btn .kti-settings-dot {
+    position: absolute;
+    top: 2px;
+    right: 0;
+    left: auto;
+    vertical-align: baseline;
+}
+.kti-topbar-btn .kti-settings-spinner { margin-left: 0; }
+
 #kti-settings-overlay {
     display: none;
     position: fixed;
@@ -310,7 +358,9 @@ GM_addStyle(`
 #kti-settings-overlay.visible { display: flex; }
 #kti-settings-box {
     width: 320px;
-    max-width: 90vw;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
     background: #1d1c1d;
     border: 1px solid rgba(176,194,115,0.25);
     border-radius: 12px;
@@ -337,7 +387,7 @@ GM_addStyle(`
     padding: 0 4px;
 }
 #kti-settings-close:hover { color: #fff; }
-#kti-settings-body { padding: 10px 12px; }
+#kti-settings-body { padding: 10px 12px; overflow-y: auto; min-height: 0; }
 #kti-settings-body .kti-set-row {
     display: flex;
     align-items: center;
@@ -411,8 +461,8 @@ function gradeColor(grade) {
 
 let tooltipEl = null;
 function ensureTooltip() {
-    if (tooltipEl) return tooltipEl;
-    tooltipEl = document.createElement('div');
+    if (tooltipEl && tooltipEl.isConnected) return tooltipEl;
+    tooltipEl = document.getElementById('kti-tooltip') || document.createElement('div');
     tooltipEl.id = 'kti-tooltip';
     document.body.appendChild(tooltipEl);
     return tooltipEl;
@@ -510,7 +560,8 @@ let pendingClientY = 0;
 
 function closestThingImg(target) {
     const img = target.closest?.('img');
-    if (img && extractThingId(img.src)) return img;
+    const id = img && extractThingId(img.src);
+    if (id && !isExcluded(id)) return img;
     return null;
 }
 function closestThingBgEl(target) {
@@ -867,6 +918,47 @@ function renderUpdateStatus(overlay) {
     }
 }
 
+const MODAL_BASE_WIDTH = 320;
+const OS_SCALE_KEY = 'kti-os-scale';
+const OS_SCALES = [1, 1.25, 1.5, 1.75, 2, 2.25, 2.5, 3];
+const IS_FIREFOX = /firefox/i.test(navigator.userAgent);
+
+function detectPageZoom() {
+    const dpr = window.devicePixelRatio || 1;
+
+    if (!IS_FIREFOX && window.outerWidth > 0 && window.innerWidth > 0) {
+        const osGuess = dpr / (window.outerWidth / window.innerWidth);
+        const os = OS_SCALES.find(s => Math.abs(s - osGuess) / s < 0.04);
+        if (os) {
+            try {
+                if (localStorage.getItem(OS_SCALE_KEY) !== String(os)) localStorage.setItem(OS_SCALE_KEY, String(os));
+            } catch (_) {}
+            return dpr / os;
+        }
+    }
+
+    let saved = NaN;
+    try { saved = parseFloat(localStorage.getItem(OS_SCALE_KEY)); } catch (_) {}
+    if (saved > 0) return dpr / saved;
+
+    return 1;
+}
+
+function applyModalScale() {
+    const box = settingsOverlayEl?.querySelector('#kti-settings-box');
+    if (!box) return;
+
+    let factor = 1 / detectPageZoom();
+    factor = Math.min(factor, (window.innerWidth * 0.95) / MODAL_BASE_WIDTH);
+    if (!Number.isFinite(factor) || factor <= 0) factor = 1;
+    factor = Math.round(factor * 1000) / 1000;
+
+    box.style.zoom = String(factor);
+    box.style.maxHeight = Math.floor((window.innerHeight * 0.92) / factor) + 'px';
+}
+
+window.addEventListener('resize', () => { if (settingsOpen) applyModalScale(); });
+
 function escSettingsHandler(e) {
     if (e.key === 'Escape') closeSettingsModal();
 }
@@ -876,9 +968,13 @@ function openSettingsModal() {
     settingsOpen = true;
     hideTooltip();
     lastRenderedId = null;
-    if (!settingsOverlayEl) settingsOverlayEl = buildSettingsModal();
+    if (!settingsOverlayEl || !settingsOverlayEl.isConnected) {
+        document.getElementById('kti-settings-overlay')?.remove();
+        settingsOverlayEl = buildSettingsModal();
+    }
     renderUpdateStatus();
     settingsOverlayEl.classList.add('visible');
+    applyModalScale();
     document.addEventListener('keydown', escSettingsHandler);
 }
 
@@ -888,10 +984,70 @@ function closeSettingsModal() {
     document.removeEventListener('keydown', escSettingsHandler);
 }
 
-if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', insertSettingsLink);
-} else {
+const TOPBAR_ICON = 'https://catwar.net/cw3/things/647.png';
+
+function insertTopbarButton() {
+    const nav = document.querySelector('.game-topbar-nav');
+    if (!nav || nav.querySelector('.kti-topbar-btn')) return;
+
+    const btn = document.createElement('a');
+    btn.href = '#';
+    btn.className = 'kti-topbar-btn';
+    btn.title = 'Настройки CW Things List';
+    btn.setAttribute('aria-label', 'Настройки CW Things List');
+
+    const icon = document.createElement('img');
+    icon.src = TOPBAR_ICON;
+    icon.alt = '';
+    icon.setAttribute('aria-hidden', 'true');
+    btn.appendChild(icon);
+
+    const label = document.createElement('span');
+    label.textContent = 'Things List';
+    btn.appendChild(label);
+
+    const spinner = document.createElement('span');
+    spinner.className = 'kti-settings-spinner';
+    spinner.style.display = updating ? 'inline-block' : 'none';
+    btn.appendChild(spinner);
+
+    const dot = document.createElement('span');
+    dot.className = 'kti-settings-dot';
+    dot.style.display = shouldShowDot() ? '' : 'none';
+    btn.appendChild(dot);
+
+    btn.addEventListener('click', e => {
+        e.preventDefault();
+        openSettingsModal();
+    });
+
+    nav.appendChild(btn);
+}
+
+function insertEntryPoints() {
     insertSettingsLink();
+    insertTopbarButton();
+}
+
+let entryCheckQueued = false;
+function queueEntryCheck() {
+    if (entryCheckQueued) return;
+    entryCheckQueued = true;
+    requestAnimationFrame(() => {
+        entryCheckQueued = false;
+        insertEntryPoints();
+    });
+}
+
+function startEntryPoints() {
+    insertEntryPoints();
+    new MutationObserver(queueEntryCheck).observe(document.body, { childList: true, subtree: true });
+}
+
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', startEntryPoints);
+} else {
+    startEntryPoints();
 }
 
 })();
