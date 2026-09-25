@@ -559,7 +559,7 @@ let pendingClientX = 0;
 let pendingClientY = 0;
 
 function closestThingImg(target) {
-    const img = target.closest?.('img');
+    const img = target.closest?.('img:not(.kti-topbar-icon)');
     const id = img && extractThingId(img.src);
     if (id && !isExcluded(id)) return img;
     return null;
@@ -998,6 +998,7 @@ function insertTopbarButton() {
 
     const icon = document.createElement('img');
     icon.src = TOPBAR_ICON;
+    icon.className = 'kti-topbar-icon';
     icon.alt = '';
     icon.setAttribute('aria-hidden', 'true');
     btn.appendChild(icon);
