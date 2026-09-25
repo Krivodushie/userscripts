@@ -984,7 +984,7 @@ function closeSettingsModal() {
     document.removeEventListener('keydown', escSettingsHandler);
 }
 
-const TOPBAR_ICON = 'https://catwar.net/cw3/things/647.png';
+const TOPBAR_ICON = '/cw3/things/647.png';
 
 function insertTopbarButton() {
     const nav = document.querySelector('.game-topbar-nav');
